@@ -475,11 +475,11 @@ func fetchUnread(c echo.Context) error {
 		var cnt int64
 		if lastID > 0 {
 			err = db.Get(&cnt,
-				"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ? AND ? < id",
+				"SELECT COUNT(channel_id) as cnt FROM message WHERE channel_id = ? AND ? < id",
 				chID, lastID)
 		} else {
 			err = db.Get(&cnt,
-				"SELECT COUNT(*) as cnt FROM message WHERE channel_id = ?",
+				"SELECT COUNT(channel_id) as cnt FROM message WHERE channel_id = ?",
 				chID)
 		}
 		if err != nil {
@@ -518,7 +518,7 @@ func getHistory(c echo.Context) error {
 
 	const N = 20
 	var cnt int64
-	err = db.Get(&cnt, "SELECT COUNT(*) as cnt FROM message WHERE channel_id = ?", chID)
+	err = db.Get(&cnt, "SELECT COUNT(channel_id) as cnt FROM message WHERE channel_id = ?", chID)
 	if err != nil {
 		return err
 	}
