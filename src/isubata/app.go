@@ -35,6 +35,7 @@ var (
 	db            *sqlx.DB
 	ErrBadReqeust = echo.NewHTTPError(http.StatusBadRequest)
 	haveread = make(map[UserChan]int64)
+	usermap = make(map[int64]User)
 )
 
 type UserChan struct {
@@ -102,6 +103,12 @@ func init() {
 	for _, hr := range hrs {
 		haveread[UserChan{hr.us, hr.ch}] = hr.ms
 	}
+
+	users := []User{}
+	db.Get(&users, "SELECT * FROM users")
+	for _, user := range users {
+		usermap[user.ID] = user
+	}
 }
 
 type User struct {
@@ -115,13 +122,11 @@ type User struct {
 }
 
 func getUser(userID int64) (*User, error) {
-	u := User{}
-	if err := db.Get(&u, "SELECT * FROM user WHERE id = ?", userID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
+	u, ok := usermap[userID]
+	if !ok {
+		return nil, nil
 	}
+
 	return &u, nil
 }
 
@@ -218,6 +223,19 @@ func register(name, password string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return id, err
+	}
+	usermap[id] = User{
+		ID: id,
+		Name: name,
+		Salt: salt,
+		Password: digest,
+		DisplayName: name,
+		AvatarIcon: "default.png",
+		CreatedAt: time.Now(),
+	}
 	return res.LastInsertId()
 }
 
@@ -225,6 +243,15 @@ func register(name, password string) (int64, error) {
 
 func getInitialize(c echo.Context) error {
 	db.MustExec("DELETE FROM user WHERE id > 1000")
+	deleteIDs := []int64{}
+	for i := range usermap {
+		if i > 1000 {
+			deleteIDs = append(deleteIDs, i)
+		}
+	}
+	for _, v := range deleteIDs {
+		delete(usermap, v)
+	}
 	db.MustExec("DELETE FROM image WHERE id > 1001")
 	db.MustExec("DELETE FROM channel WHERE id > 10")
 	db.MustExec("DELETE FROM message WHERE id > 10000")
@@ -333,11 +360,15 @@ func postLogin(c echo.Context) error {
 	}
 
 	var user User
-	err := db.Get(&user, "SELECT * FROM user WHERE name = ?", name)
-	if err == sql.ErrNoRows {
+	found := false
+	for _, v := range usermap {
+		if v.Name == name {
+			found = true
+			user = v
+		}
+	}
+	if !found {
 		return echo.ErrForbidden
-	} else if err != nil {
-		return err
 	}
 
 	digest := fmt.Sprintf("%x", sha1.Sum([]byte(user.Salt+pw)))
@@ -381,11 +412,9 @@ func postMessage(c echo.Context) error {
 }
 
 func jsonifyMessage(m Message) (map[string]interface{}, error) {
-	u := User{}
-	err := db.Get(&u, "SELECT name, display_name, avatar_icon FROM user WHERE id = ?",
-		m.UserID)
-	if err != nil {
-		return nil, err
+	u, ok := usermap[m.UserID]
+	if !ok {
+		return nil, sql.ErrNoRows
 	}
 
 	r := make(map[string]interface{})
@@ -577,12 +606,15 @@ func getProfile(c echo.Context) error {
 
 	userName := c.Param("user_name")
 	var other User
-	err = db.Get(&other, "SELECT * FROM user WHERE name = ?", userName)
-	if err == sql.ErrNoRows {
-		return echo.ErrNotFound
+	found := false
+	for _, v := range usermap {
+		if v.Name == userName {
+			found = true
+			other = v
+		}
 	}
-	if err != nil {
-		return err
+	if !found {
+		return echo.ErrNotFound
 	}
 
 	return c.Render(http.StatusOK, "profile", map[string]interface{}{
@@ -681,10 +713,12 @@ func postProfile(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec("UPDATE user SET avatar_icon = ? WHERE id = ?", avatarName, self.ID)
-		if err != nil {
-			return err
-		}
+		u := usermap[self.ID]
+		u.AvatarIcon = avatarName
+		usermap[self.ID] = u
+		go func() {
+			db.Exec("UPDATE user SET avatar_icon = ? WHERE id = ?", avatarName, self.ID)
+		}()
 
 		err = ioutil.WriteFile(images + avatarName, avatarData, 0777)
 		if err != nil {
@@ -693,10 +727,12 @@ func postProfile(c echo.Context) error {
 	}
 
 	if name := c.FormValue("display_name"); name != "" {
-		_, err := db.Exec("UPDATE user SET display_name = ? WHERE id = ?", name, self.ID)
-		if err != nil {
-			return err
-		}
+		u := usermap[self.ID]
+		u.DisplayName = name
+		usermap[self.ID] = u
+		go func() {
+			db.Exec("UPDATE user SET display_name = ? WHERE id = ?", name, self.ID)
+		}()
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/")
