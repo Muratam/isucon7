@@ -105,7 +105,7 @@ func init() {
 	}
 
 	users := []User{}
-	db.Get(&users, "SELECT * FROM users")
+	db.Get(&users, "SELECT * FROM user")
 	for _, user := range users {
 		usermap[user.ID] = user
 	}
