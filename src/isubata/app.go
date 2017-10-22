@@ -28,6 +28,7 @@ import (
 
 const (
 	avatarMaxBytes = 1 * 1024 * 1024
+	images = "/home/isucon/icons/"
 )
 
 var (
@@ -229,6 +230,14 @@ func getInitialize(c echo.Context) error {
 	db.MustExec("DELETE FROM message WHERE id > 10000")
 	db.MustExec("DELETE FROM haveread")
 	haveread = make(map[UserChan]int64)
+	err := os.RemoveAll(images)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(images, 0777)
+	if err != nil {
+		return err
+	}
 	return c.String(204, "")
 }
 
@@ -680,6 +689,11 @@ func postProfile(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+
+		err = ioutil.WriteFile(images + avatarName, avatarData, 0777)
+		if err != nil {
+			return err
+		}
 	}
 
 	if name := c.FormValue("display_name"); name != "" {
@@ -702,6 +716,12 @@ func getIcon(c echo.Context) error {
 	}
 	if err != nil {
 		return err
+		}
+	if _, err := os.Stat(images + name); os.IsNotExist(err) {
+		err = ioutil.WriteFile(images + name, data, 0777)
+		if err != nil {
+			return err
+		}
 	}
 
 	mime := ""
