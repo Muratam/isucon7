@@ -28,6 +28,7 @@ import (
 
 const (
 	avatarMaxBytes = 1 * 1024 * 1024
+	images = "/home/isucon/icons/"
 )
 
 var (
@@ -209,6 +210,14 @@ func getInitialize(c echo.Context) error {
 	db.MustExec("DELETE FROM channel WHERE id > 10")
 	db.MustExec("DELETE FROM message WHERE id > 10000")
 	db.MustExec("DELETE FROM haveread")
+	err := os.RemoveAll(images)
+	if err != nil {
+		return err
+	}
+	err = os.Mkdir(images, 0777)
+	if err != nil {
+		return err
+	}
 	return c.String(204, "")
 }
 
@@ -669,6 +678,23 @@ func postProfile(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+
+		if _, err := os.Stat(images + avatarName); os.IsNotExist(err) {
+			file, err := os.Create(images + avatarName)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			file.Write(avatarData)
+		} else if err != nil {
+			return err
+		} else {
+			err := ioutil.WriteFile(images + avatarName, avatarData, 0777)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	if name := c.FormValue("display_name"); name != "" {
@@ -684,14 +710,34 @@ func postProfile(c echo.Context) error {
 func getIcon(c echo.Context) error {
 	var name string
 	var data []byte
-	err := db.QueryRow("SELECT name, data FROM image WHERE name = ?",
-		c.Param("file_name")).Scan(&name, &data)
-	if err == sql.ErrNoRows {
-		return echo.ErrNotFound
+	image, err := os.Open(images + name)
+	if os.IsNotExist(err) {
+		err := db.QueryRow("SELECT name, data FROM image WHERE name = ?",
+			c.Param("file_name")).Scan(&name, &data)
+		if err == sql.ErrNoRows {
+			return echo.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(images + name)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = file.Write(data)
+		if err != nil {
+			return err
+		}
+	} else {
+		defer image.Close()
+		_, err := image.Read(data)
+		if err != nil {
+			return err
+		}
 	}
-	if err != nil {
-		return err
-	}
+
 
 	mime := ""
 	switch true {
