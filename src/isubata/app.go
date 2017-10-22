@@ -23,6 +23,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/middleware"
+	"github.com/sevenNt/echo-pprof"
 )
 
 const (
@@ -755,6 +756,8 @@ func main() {
 	e.GET("add_channel", getAddChannel)
 	e.POST("add_channel", postAddChannel)
 	e.GET("/icons/:file_name", getIcon)
+
+	echopprof.Wrap(e)
 
 	e.Start(":5000")
 }
