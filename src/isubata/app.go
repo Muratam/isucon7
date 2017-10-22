@@ -360,15 +360,11 @@ func postLogin(c echo.Context) error {
 	}
 
 	var user User
-	found := false
-	for _, v := range usermap {
-		if v.Name == name {
-			found = true
-			user = v
-		}
-	}
-	if !found {
+	err := db.Get(&user, "SELECT * FROM user WHERE name = ?", name)
+	if err == sql.ErrNoRows {
 		return echo.ErrForbidden
+	} else if err != nil {
+		return err
 	}
 
 	digest := fmt.Sprintf("%x", sha1.Sum([]byte(user.Salt+pw)))
