@@ -450,10 +450,6 @@ func queryHaveRead(userID, chID int64) (int64, error) {
 
 	id = haveread[UserChan{userID, chID}]
 
-	go func() {
-		db.Get(&id, "SELECT message_id FROM haveread WHERE user_id = ? AND channel_id = ?",
-			userID, chID)
-	}()
 	return id, nil
 }
 
