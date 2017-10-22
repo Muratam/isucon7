@@ -679,21 +679,9 @@ func postProfile(c echo.Context) error {
 			return err
 		}
 
-		if _, err := os.Stat(images + avatarName); os.IsNotExist(err) {
-			file, err := os.Create(images + avatarName)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			file.Write(avatarData)
-		} else if err != nil {
+		err = ioutil.WriteFile(images + avatarName, avatarData, 0777)
+		if err != nil {
 			return err
-		} else {
-			err := ioutil.WriteFile(images + avatarName, avatarData, 0777)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -710,31 +698,20 @@ func postProfile(c echo.Context) error {
 func getIcon(c echo.Context) error {
 	var name string
 	var data []byte
+	err := db.QueryRow("SELECT name, data FROM image WHERE name = ?",
+		c.Param("file_name")).Scan(&name, &data)
+	if err == sql.ErrNoRows {
+		return echo.ErrNotFound
+	}
+	if err != nil {
+		return err
+		}
 	if _, err := os.Stat(images + name); os.IsNotExist(err) {
-		err := db.QueryRow("SELECT name, data FROM image WHERE name = ?",
-			c.Param("file_name")).Scan(&name, &data)
-		if err == sql.ErrNoRows {
-			return echo.ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
 		err = ioutil.WriteFile(images + name, data, 0777)
 		if err != nil {
 			return err
 		}
-	} else {
-		file, err := os.Open(images + name)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		_, err = file.Read(data)
-		if err != nil {
-			return err
-		}
 	}
-
 
 	mime := ""
 	switch true {
