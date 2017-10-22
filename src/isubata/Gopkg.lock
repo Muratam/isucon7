@@ -69,6 +69,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/sevenNt/echo-pprof"
+  packages = ["."]
+  revision = "8bdaf794e4583c013a089f3902aa140d45a5af1c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/valyala/bytebufferpool"
   packages = ["."]
   revision = "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7"
@@ -94,6 +100,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9d36470f0563bf7a47836bd9683357e361e744892223667a231bf07b98f8882f"
+  inputs-digest = "c3e35824c4688b274ef721833b5345daaa3cb77a7b848942263ad41c5ac97294"
   solver-name = "gps-cdcl"
   solver-version = 1
