@@ -283,6 +283,8 @@ func getChannel(c echo.Context) error {
 		}
 	}
 	return c.Render(http.StatusOK, "channel", map[string]interface{}{
+		"ChannelID":   cID,
+		"Channels":    channels,
 		"User":        user,
 		"Description": desc,
 	})
