@@ -710,8 +710,7 @@ func postProfile(c echo.Context) error {
 func getIcon(c echo.Context) error {
 	var name string
 	var data []byte
-	image, err := os.Open(images + name)
-	if os.IsNotExist(err) {
+	if _, err := os.Stat(images + name); os.IsNotExist(err) {
 		err := db.QueryRow("SELECT name, data FROM image WHERE name = ?",
 			c.Param("file_name")).Scan(&name, &data)
 		if err == sql.ErrNoRows {
@@ -720,19 +719,17 @@ func getIcon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		file, err := os.Create(images + name)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		_, err = file.Write(data)
+		err = ioutil.WriteFile(images + name, data, 0777)
 		if err != nil {
 			return err
 		}
 	} else {
-		defer image.Close()
-		_, err := image.Read(data)
+		file, err := os.Open(images + name)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = file.Read(data)
 		if err != nil {
 			return err
 		}
